@@ -325,6 +325,7 @@ typedef struct CpuTopology {
     unsigned int cores;
     unsigned int threads;
     unsigned int max_cpus;
+    unsigned int *host_cpus;
 } CpuTopology;
 
 /**

@@ -160,6 +160,18 @@ void machine_parse_smp_config(MachineState *ms,
     ms->smp.threads = threads;
     ms->smp.max_cpus = maxcpus;
 
+    if (config->has_host_cpus) {
+        ms->smp.host_cpus = (unsigned int*) g_malloc0(sizeof(unsigned int)*cpus);
+        int i = 0;
+        intList *host_cpus = NULL;
+        for (host_cpus = config->host_cpus; host_cpus; host_cpus = host_cpus->next) {
+            ms->smp.host_cpus[i] = host_cpus->value;
+            i += 1;
+        }
+    } else {
+        ms->smp.host_cpus = NULL;
+    }
+
     mc->smp_props.has_clusters = config->has_clusters;
 
     /* sanity-check of the computed topology */

@@ -22,6 +22,7 @@
 #include "sysemu/cpus.h"
 #include "qemu/guest-random.h"
 #include "qapi/error.h"
+#include "hw/boards.h"
 
 #include <linux/kvm.h>
 #include "kvm-cpus.h"
@@ -66,6 +67,7 @@ static void *kvm_vcpu_thread_fn(void *arg)
 static void kvm_start_vcpu_thread(CPUState *cpu)
 {
     char thread_name[VCPU_THREAD_NAME_SIZE];
+    MachineState *ms = MACHINE(qdev_get_machine());
 
     cpu->thread = g_malloc0(sizeof(QemuThread));
     cpu->halt_cond = g_malloc0(sizeof(QemuCond));
@@ -74,6 +76,21 @@ static void kvm_start_vcpu_thread(CPUState *cpu)
              cpu->cpu_index);
     qemu_thread_create(cpu->thread, thread_name, kvm_vcpu_thread_fn,
                        cpu, QEMU_THREAD_JOINABLE);
+
+    if (ms->smp.host_cpus != 0) {
+        unsigned long *bitmap = NULL;
+        int nbits = 0;
+        int ret;
+
+        nbits = MAX(nbits, ms->smp.host_cpus[cpu->cpu_index] + 1);
+        bitmap = bitmap_new(nbits);
+        set_bit(ms->smp.host_cpus[cpu->cpu_index], bitmap);
+        ret = qemu_thread_set_affinity(cpu->thread, bitmap, nbits);
+        if (ret) {
+            error_setg(&error_fatal, "Setting CPU affinity failed: %s", strerror(ret));
+        }
+        g_free(bitmap);
+    }
 }
 
 static bool kvm_vcpu_thread_is_idle(CPUState *cpu)
